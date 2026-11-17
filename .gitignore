@@ -1,0 +1,9 @@
+node_modules
+dist
+server/data
+dist-api
+dist-preview
+dist-*
+screenshots/
+server/data
+*.log

@@ -1,0 +1,83 @@
+/*
+ * 격납고 화면. 색과 모양은 tokens.css 의 값만 쓴다.
+ * 3D 선반이 화면을 채우고, 위에는 손으로 쓴 간판과 차례 딱지, 아래에는 고른 비행기의 도화지 판이 올라온다.
+ */
+.hangar { position: relative; height: 100%; overflow: hidden; }
+.hg-canvas { position: absolute; inset: 0; }
+.hg-canvas__gl { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.hg-canvas__gl:active { cursor: grabbing; }
+/* 가장자리를 살짝 어둡고 따뜻하게(체육관과 같은 비네트) */
+.hg-canvas__vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 90% 80% at 50% 45%, rgba(255, 236, 200, 0) 55%, rgba(120, 62, 30, 0.22) 100%), linear-gradient(rgba(255, 214, 150, 0.06), rgba(255, 190, 120, 0.08)); }
+
+/* ---- 간판과 차례 딱지 ---- */
+.hg-head { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 10px; padding: 4px var(--gutter) 0; pointer-events: none; }
+.hg-head > * { pointer-events: auto; }
+.hg-sign { justify-self: start; display: flex; align-items: baseline; gap: 8px; max-width: 100%; padding: 4px 12px 6px; border: var(--line); border-radius: var(--radius-small); background: var(--paper); box-shadow: var(--drop-small); transform: rotate(-1.5deg); }
+.hg-sign__title { font-size: var(--t-title); line-height: 1.15; }
+.hg-sign__sub { font-size: 12px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hg-count { padding: 2px 10px; border: var(--line-thin); border-radius: 999px; background: var(--yellow); font-family: var(--font-display); font-size: var(--t-body); transform: rotate(2deg); white-space: nowrap; }
+.hg-count b { font-weight: 400; font-size: var(--t-big); }
+.hg-chips { grid-column: 1 / -1; display: flex; gap: 6px; }
+.hg-chip { display: inline-flex; align-items: center; justify-content: center; gap: 4px; flex: 1; min-width: 0; min-height: var(--tap); padding: 0 8px; border: var(--line); border-radius: 999px; background: var(--paper); box-shadow: var(--drop-small); font-family: var(--font-display); font-size: var(--t-body); white-space: nowrap; transition: transform 0.06s, box-shadow 0.06s; }
+.hg-chip.is-on { background: var(--yellow); transform: translateY(2px); box-shadow: var(--drop-pressed); }
+.hg-notes { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 4px; }
+.hg-note { padding: 6px 10px; border: var(--line-thin); border-radius: var(--radius-small); background: var(--yellow-soft); font-size: var(--t-small); }
+
+/* ---- 빈 격납고, 귀띔 ---- */
+.hg-empty { position: absolute; z-index: 2; left: 50%; bottom: max(20px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: stretch; gap: 10px; width: min(380px, calc(100% - 32px)); padding: 14px; border: var(--line); border-radius: var(--radius); background: var(--paper); box-shadow: var(--drop); text-align: center; transform: translateX(-50%); }
+.hg-empty b { font-family: var(--font-display); font-weight: 400; font-size: var(--t-big); }
+.hg-empty--small { font-size: var(--t-body); }
+.hg-hint { position: absolute; white-space: nowrap; z-index: 2; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); width: max-content; max-width: calc(100% - 24px); padding: 6px 14px; border: var(--line-thin); border-radius: 999px; background: var(--paper); font-size: var(--t-small); text-align: center; transform: translateX(-50%); pointer-events: none; }
+
+/* ---- 고른 비행기의 판 ---- */
+.hangar .hg-panel { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; gap: 8px; max-height: 67%; padding-top: 12px; overflow-y: auto; overscroll-behavior: contain; animation: hg-rise 0.28s ease-out both; }
+@keyframes hg-rise { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.hg-panel__head { display: flex; align-items: center; gap: 8px; }
+.hg-panel .hg-panel__name { flex: 0 1 auto; min-width: 0; margin-right: auto; font-size: var(--t-title); overflow: hidden; text-overflow: ellipsis; }
+.hg-fav.is-on { background: var(--yellow-soft); }
+.hg-panel__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip.hg-bal--good { background: var(--green-soft); }
+.chip.hg-bal--front, .chip.hg-bal--back { background: var(--yellow-soft); }
+.hg-panel__bests { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.hg-best { padding: 6px 10px 8px; border: var(--line-thin); border-radius: var(--radius-small); background: var(--paper-shade); line-height: 1.2; }
+.hg-best.is-champ { background: var(--yellow-soft); }
+.hg-best__head { display: flex; align-items: center; gap: 4px; font-family: var(--font-display); font-size: var(--t-small); }
+.hg-best b { font-family: var(--font-display); font-weight: 400; font-size: var(--t-title); }
+.hg-best small { color: var(--ink-soft); }
+.hg-panel__meta { font-size: var(--t-small); color: var(--ink-soft); text-align: center; }
+.hg-panel__meta b { font-family: var(--font-display); font-weight: 400; font-size: var(--t-body); color: var(--ink); }
+.hg-acts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.hg-act { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 58px; padding: 4px 2px; border: var(--line); border-radius: var(--radius-small); background: var(--paper); box-shadow: var(--drop-small); font-family: var(--font-display); font-size: 15px; line-height: 1.15; text-align: center; transition: transform 0.06s, box-shadow 0.06s; }
+.hg-act:active { transform: translateY(2px); box-shadow: var(--drop-pressed); }
+.hg-act--note { background: var(--blue-soft); }
+.hg-act--wide { grid-column: span 2; flex-direction: row; gap: 8px; }
+.hg-act--danger { background: var(--red-soft); }
+.btn.hg-danger { background: var(--red-soft); }
+/* 판이 올라오면 차례 딱지는 잠깐 치운다(받침대가 잘 보이게) */
+.hangar.is-picked .hg-chips, .hangar.is-picked .hg-sign__sub { display: none; }
+
+/* ---- 3D 를 쓸 수 없을 때: 그림 딱지 목록 ---- */
+.hangar--flat { display: flex; flex-direction: column; background: var(--desk) repeating-linear-gradient(0deg, transparent 0 148px, var(--desk-dark) 148px 156px); }
+.hangar--flat .hg-head { padding-bottom: 8px; }
+.hg-grid { position: relative; z-index: 1; flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); align-content: start; gap: 14px 12px; padding: 6px var(--gutter) 120px; overflow-y: auto; overscroll-behavior: contain; }
+.hg-card { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; padding: 8px 8px 10px; border: var(--line); border-radius: var(--radius-small); background: var(--paper); box-shadow: var(--drop); transform: rotate(var(--tilt, 0deg)); text-align: center; }
+.hg-card.is-on { background: var(--yellow-soft); }
+.hg-card__pic { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 1 / 1; border: var(--line-thin); border-radius: 8px; background: var(--blue-soft); overflow: hidden; }
+.hg-card__pic img { width: 100%; height: 100%; object-fit: contain; }
+.hg-card__pic .silhouette { width: 70%; height: 86%; }
+.hg-card__star { position: absolute; right: 4px; top: 4px; }
+.hg-card__name { max-width: 100%; font-family: var(--font-display); font-size: var(--t-body); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hg-card__line { font-size: var(--t-small); color: var(--ink-soft); }
+.hg-card--empty { border-style: dashed; border-color: var(--ink-soft); background: transparent; box-shadow: none; color: var(--ink-soft); }
+.hg-card--empty .hg-card__pic { border-style: dashed; border-color: var(--ink-soft); background: transparent; }
+.hangar--flat .hg-empty { position: relative; left: auto; bottom: auto; margin: 0 auto 16px; transform: none; }
+
+/* ---- 넓은 화면: 판이 오른쪽에 떠 있다 ---- */
+@media (min-width: 900px) {
+  .hg-head { grid-template-columns: auto auto minmax(0, 1fr); padding-top: 8px; }
+  .hg-chips { grid-column: auto; justify-self: end; }
+  .hg-chip { flex: none; padding: 0 18px; }
+  .hangar .hg-panel { left: auto; right: 28px; bottom: 28px; width: 400px; max-height: calc(100% - 100px); }
+  .hangar.is-picked .hg-chips, .hangar.is-picked .hg-sign__sub { display: flex; }
+  .hangar.is-picked .hg-sign__sub { display: block; }
+}

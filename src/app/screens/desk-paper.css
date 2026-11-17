@@ -1,0 +1,123 @@
+/*
+ * 책상 화면 중 "종이 겉모습"과 "접는 동안 비행기 보기"에 딸린 모양.
+ * (Desk.tsx 가 직접 불러온다. 공용 styles.css 와 부딪히지 않도록 여기에 따로 둔다.)
+ * 색, 글꼴, 모양은 tokens.css 의 토큰만 쓴다.
+ */
+
+/* ---- 비행기 입체 보기 한 칸 ---- */
+.planeview { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.planeview__stage { position: relative; flex: 1 1 0; min-height: 0; }
+.planehost { position: absolute; inset: 0; }
+.planehost .preview3d { position: absolute; inset: 0; }
+.inspect__stage .planeview__stage { position: absolute; inset: 0; }
+/* 살펴보기 단추(누르는 곳은 48px 이상). 기본은 그림 위 오른쪽 아래에 얹는 알약 모양. */
+.lookbtn {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 2px 14px 2px 10px;
+  border: var(--line-thin);
+  border-radius: 999px;
+  background: var(--paper);
+  box-shadow: var(--drop-pressed);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--t-body);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.lookbtn:active { transform: translateY(1px); box-shadow: none; }
+.lookbtn__icon { flex: none; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+/* 작은 미리보기에서는 비행기를 가리지 않게 돋보기만 남긴다(이름은 aria-label 로 읽힌다). */
+.desk__preview .lookbtn { right: 4px; bottom: 4px; width: var(--tap); padding: 0; }
+.desk__preview .lookbtn__label { display: none; }
+/* 접기 판 옆 칸에서는 그림 아래에 한 줄로 붙인다(그림을 가리지 않는다). */
+.fb-aside .lookbtn {
+  position: static;
+  flex: none;
+  width: 100%;
+  border: 0;
+  border-top: var(--line);
+  border-radius: 0;
+  box-shadow: none;
+  padding-inline: 4px;
+}
+.fb-aside .lookbtn:active { transform: none; background: var(--yellow-soft); }
+.fb-desk--pip .fb-aside .lookbtn { position: absolute; inset: auto 0 0 0; min-height: 30px; font-size: var(--t-small); background: color-mix(in srgb, var(--paper) 86%, transparent); }
+
+/* ---- 좁은 화면에서 접는 동안: 위쪽은 한 줄 띠 ---- */
+.desk__strip { display: flex; align-items: center; gap: 6px; height: 52px; padding: 2px 8px 0; min-width: 0; }
+.desk__strip .balance { flex: 1 1 0; min-width: 0; height: 46px; padding: 0 6px 0 0; column-gap: 0; }
+.desk__strip .balance__svg { width: 48px; height: 26px; }
+.desk__strip .balance__label { font-size: var(--t-body); overflow: hidden; text-overflow: ellipsis; }
+.desk__strip .balance__hint { display: none; }
+.desk__strip .chip { flex: 0 1 auto; display: block; min-width: 0; max-width: 31%; padding: 5px 8px 0; overflow: hidden; text-overflow: ellipsis; }
+.desk__strip .btn { flex: none; padding-inline: 8px; gap: 4px; }
+.desk__strip .btn .icon { display: none; }
+.desk[data-slim='1'] .desk__steps { padding-top: 6px; }
+/* 줄인 만큼 종이와 비행기에 자리를 준다 */
+.desk[data-slim='1'] .fb { --fb-desk-h: clamp(250px, 42svh, 480px); }
+.desk[data-slim='1'] .desk__body { padding-top: 10px; }
+
+/* ---- 종이 카드: 왼쪽에 실제 무늬로 그린 종이 한 장 ---- */
+.desk .papercard--pic { flex-direction: row; align-items: center; gap: 10px; padding: 10px 10px 10px 8px; min-width: 0; }
+.papers { min-width: 0; }
+.papercard__pic { flex: none; width: 62px; transform: rotate(var(--tilt, 0deg)); transition: transform 0.18s var(--ease-thunk); }
+.papercard.is-on .papercard__pic { transform: rotate(0deg) scale(1.08); }
+.papercard__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.desk .papercard--pic .dots { grid-template-columns: 50px repeat(6, 12px) auto; gap: 3px; }
+.desk .papercard--pic .dots i { width: 12px; height: 12px; }
+.paperswatch { display: block; width: 100%; height: auto; overflow: visible; }
+.paperswatch__drop { fill: var(--ink); opacity: 0.22; }
+.paperswatch__side { stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
+.paperswatch__line { fill: none; stroke: var(--ink); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+.paperswatch__under path { fill: none; stroke: var(--blue); stroke-width: 2.4; opacity: 0.55; }
+.paperswatch__earshade { fill: var(--ink); opacity: 0.1; }
+
+/* ---- 접는 법 카드와 다 접은 카드의 비행기 그림 ---- */
+.silhouette--img { object-fit: contain; }
+.foldcard__pic .silhouette--img, .donecard__pic .silhouette--img { width: 100%; height: 100%; }
+
+/* ---- 다 접었어요: 큰 입체 비행기 ---- */
+.desk .donecard--hero { flex-direction: column; align-items: stretch; gap: 10px; padding: 8px 8px 12px; }
+.donecard__stage { position: relative; height: clamp(190px, 33svh, 320px); border: var(--line); border-radius: var(--radius-small); overflow: hidden; }
+.donecard--hero .donecard__text { align-items: center; text-align: center; }
+.btnrow--one { grid-template-columns: 1fr; }
+.btn--done { background: var(--green-soft); }
+.btn--done:disabled { background: var(--paper-shade); color: var(--ink-soft); opacity: 0.7; box-shadow: var(--drop-pressed); }
+
+/* ---- 살펴보기 창 ---- */
+.inspect { display: flex; flex-direction: column; gap: 10px; }
+.inspect__stage { position: relative; height: clamp(230px, 46svh, 430px); border: var(--line); border-radius: var(--radius-small); overflow: hidden; }
+.inspect__stage .preview3d { position: absolute; inset: 0; }
+.inspect__views { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.viewbtn {
+  min-height: var(--tap);
+  padding: 4px 2px;
+  border: var(--line);
+  border-radius: var(--radius-small);
+  background: var(--paper);
+  box-shadow: var(--drop-small);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--t-body);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.viewbtn.is-on { background: var(--yellow); box-shadow: var(--drop-pressed); transform: translateY(2px); }
+.inspect__hint { margin: 0; font-size: var(--t-small); color: var(--ink-soft); text-align: center; }
+.inspect__meter { display: flex; align-items: center; gap: 8px; }
+.inspect__meter .balance { flex: 1; min-height: 52px; }
+.inspect__meter .chip { flex: none; }
+
+/* ---- 넓은 화면 ---- */
+@media (min-width: 900px) {
+  .desk__preview .lookbtn { right: 10px; bottom: 10px; }
+}

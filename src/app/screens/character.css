@@ -1,0 +1,106 @@
+/*
+ * 내 캐릭터(꾸미기) 화면. 색과 모양은 tokens.css 의 값만 쓴다.
+ * 위: 체육관 무대(끌어서 돌린다) / 아래: 색종이 판(갈래 -> 선택지 -> "다 됐어요").
+ */
+/* 화면 칸(app__main)을 꽉 채운다: 안의 가로로 미는 줄들이 칸의 폭을 밀어 넓히지 못하게 자리를 직접 잡는다 */
+.creator { position: absolute; inset: 0; display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; }
+.creator__stage { position: relative; flex: 1; min-height: 120px; touch-action: none; cursor: grab; }
+.creator__stage:active { cursor: grabbing; }
+.creator__turn { position: absolute; left: 0; right: 0; top: 50%; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; pointer-events: none; }
+.creator__tip { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%) rotate(-2deg); }
+.creator__turn .iconbtn { pointer-events: auto; }
+.creator__tip { font-size: var(--t-body); pointer-events: none; }
+
+.creator__sheet { gap: 8px; min-width: 0; padding-top: 10px; }
+.creator__sheet > * { min-width: 0; }
+.creator__sheet .btn--xl { min-height: 54px; font-size: var(--t-big); }
+.creator__head { display: flex; align-items: center; gap: 8px; }
+.creator__title { flex: 1; min-width: 0; font-family: var(--font-display); font-weight: 400; font-size: var(--t-big); line-height: 1.1; white-space: nowrap; }
+.creator__head .btn { flex: none; min-height: var(--tap); padding-inline: 9px; gap: 4px; white-space: nowrap; }
+.creator__note { color: var(--ink-soft); font-size: var(--t-small); line-height: 1.35; }
+
+/* 갈래(탭): 가로로 밀어 볼 수 있는 한 줄. 고른 갈래는 노란 색종이로 올라온다. */
+.ctabs { display: flex; gap: 6px; margin: 0 calc(-1 * var(--gutter)); padding: 2px var(--gutter) 6px; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+.ctabs::-webkit-scrollbar { display: none; }
+.ctab { flex: 1 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 50px; min-height: 56px; padding: 4px 6px; border: var(--line-thin); border-radius: var(--radius-small); background: var(--paper-shade); font-family: var(--font-display); font-size: var(--t-small); line-height: 1.1; white-space: nowrap; }
+.ctab.is-on { background: var(--yellow); box-shadow: var(--drop-small); transform: translateY(-2px); }
+
+.creator__panel { display: flex; flex-direction: column; gap: 4px; height: 164px; overflow: hidden; overflow: clip; }
+/* 선택지 한 줄: 가로로 밀어 본다(페이지는 가로로 밀리지 않는다) */
+.crow { display: flex; gap: 8px; margin: 0 calc(-1 * var(--gutter)); padding: 3px var(--gutter) 7px; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; scroll-snap-type: x proximity; }
+.crow::-webkit-scrollbar { display: none; }
+.crow--two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); overflow: visible; }
+.crow--dots { flex: 1; min-width: 0; gap: 6px; margin: 0; padding: 3px 2px 6px; }
+.crow--big { flex: none; justify-content: space-between; padding-top: 12px; }
+.crow--big .cdot { width: 58px; height: 58px; }
+
+/* 그림 카드: 실제 모델의 작은 그림 + 이름 */
+.ccard { flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 84px; padding: 4px 4px 5px; border: var(--line-thin); border-radius: var(--radius-small); background: var(--paper); scroll-snap-align: start; }
+.ccard.is-on { background: var(--yellow-soft); box-shadow: var(--drop-small); transform: translateY(-2px); border-width: 2.5px; }
+.ccard__pic { display: grid; place-items: center; width: 72px; height: 70px; border-radius: 8px; background: var(--hall); overflow: hidden; }
+.ccard__pic img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.ccard__wait { width: 22px; height: 22px; border-radius: 50%; background: var(--paper); opacity: 0.7; animation: ccard-wait 0.9s ease-in-out infinite alternate; }
+@keyframes ccard-wait { from { transform: scale(0.7); } to { transform: scale(1.1); } }
+.ccard__name { font-family: var(--font-display); font-size: var(--t-small); line-height: 1.15; white-space: nowrap; }
+.ccard--wide { width: auto; flex-direction: row; justify-content: center; gap: 10px; padding: 6px 10px; }
+.ccard--wide .ccard__pic { width: 72px; height: 92px; }
+.ccard--wide .ccard__name { font-size: var(--t-big); }
+.ccard--face .ccard__pic { height: 56px; border: var(--line-thin); }
+.ccard--face .ccard__pic img { width: 100%; height: auto; object-fit: cover; }
+
+/* 색 고르기: 동그란 색종이. 누르는 곳은 48px, 고른 색은 남색 테가 한 겹 더 생긴다. */
+.cline { display: flex; align-items: center; gap: 6px; min-height: var(--tap); }
+.cline.is-off { opacity: 0.45; }
+.cline__label { flex: none; width: 52px; font-family: var(--font-display); font-size: var(--t-small); line-height: 1.15; color: var(--ink-soft); }
+.cdot { flex: none; display: grid; place-items: center; width: var(--tap); height: var(--tap); padding: 0; border: 0; border-radius: 50%; background: none; }
+.cdot__ink { width: 78%; height: 78%; border: var(--line-thin); border-radius: 50%; box-shadow: var(--drop-small); }
+.cdot.is-on { background: var(--yellow); box-shadow: inset 0 0 0 2.5px var(--ink); }
+.cdot.is-on .cdot__ink { box-shadow: none; }
+
+/* 이름 */
+.cname { display: flex; flex-direction: column; gap: 8px; padding-top: 6px; }
+.cname__label { font-family: var(--font-display); font-size: var(--t-big); }
+.cname__row { display: flex; align-items: center; gap: 12px; }
+.cname__input { flex: 1; min-width: 0; min-height: 52px; padding: 6px 14px; border: var(--line); border-radius: var(--radius); background: var(--paper); font-family: var(--font-display); font-size: var(--t-title); color: var(--ink); }
+.cname__input:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.cname__tag { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
+
+/* 직접 그린 작은 그림의 색 */
+.icon .c-fill-hair { fill: var(--court-dark); }
+.icon .c-fill-ink { fill: var(--ink); }
+.icon .c-fill-white { fill: var(--paper); stroke: none; }
+.icon .c-stroke-blue { stroke: var(--blue); }
+.icon .c-skin-1 { fill: var(--skin); }
+.icon .c-skin-2 { fill: var(--court); }
+.icon .c-skin-3 { fill: var(--court-dark); }
+
+/* 대회장의 귀띔과, 아이를 눌러 들어오는 자리 */
+.home__kid { position: fixed; z-index: 1; border: 0; border-radius: 40%; background: none; -webkit-tap-highlight-color: transparent; }
+.home__kid:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.charnudge { align-self: flex-end; margin: -4px 6px -8px 0; padding: 3px 12px 4px; border: var(--line-thin); border-radius: var(--radius-small); background: var(--yellow); box-shadow: var(--drop-small); font-family: var(--font-display); font-size: var(--t-small); white-space: nowrap; transform: rotate(-2deg); pointer-events: none; animation: charnudge-in 0.4s var(--ease-thunk) both; }
+@keyframes charnudge-in { from { opacity: 0; transform: translateY(8px) rotate(-2deg); } }
+
+/* 격납고 단추와 나란히: 둘뿐일 때는 글이 긴 격납고 쪽에 자리를 더 준다 */
+.home__side:has(> :nth-child(2):last-child) { grid-auto-flow: row; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+.home__side > [data-testid='go-character'] { padding-inline: 6px; gap: 5px; }
+.home__side > [data-testid='go-character'] .icon { width: 22px; height: 22px; }
+
+@media (max-height: 640px) {
+  .creator__panel { height: 150px; }
+  .ccard__pic { width: 60px; height: 56px; }
+  .ccard--wide .ccard__pic { width: 62px; height: 78px; }
+  .ctab { min-height: 48px; }
+  .creator__sheet .btn--xl { min-height: 48px; }
+}
+
+/* 넓은 화면: 판이 오른쪽에 떠 있고 아이는 왼쪽 넓은 곳에 선다 */
+@media (min-width: 900px) {
+  .creator { display: block; }
+  .creator__stage { position: absolute; inset: 0; }
+  .creator__turn { left: 28px; right: 500px; }
+  .creator__tip { left: calc((100% - 470px) / 2); bottom: 36px; }
+  .creator .creator__sheet { position: absolute; right: 28px; bottom: 28px; width: 440px; max-height: calc(100% - 40px); overflow-y: auto; }
+  .creator__panel { height: 190px; }
+  .ccard { width: 92px; }
+  .ccard__pic { width: 80px; height: 80px; }
+}

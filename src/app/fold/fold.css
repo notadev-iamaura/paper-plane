@@ -1,0 +1,481 @@
+/*
+ * 접기 판(FoldBoard) 전용 모양. 모든 이름은 fb- 로 시작해서 다른 화면의 이름과 부딪히지 않는다.
+ * 색, 글꼴, 모양은 src/app/tokens.css 의 토큰만 쓴다(반투명은 color-mix 나 opacity 로 만든다).
+ * 책상 높이는 --fb-desk-h 로 바깥에서 바꿀 수 있다(기본: 화면 높이의 약 56%).
+ */
+.fb {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 560px;
+  margin-inline: auto;
+  min-width: 0;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--t-body);
+  line-height: 1.35;
+  box-sizing: border-box;
+}
+.fb *, .fb *::before, .fb *::after { box-sizing: border-box; }
+
+/* ---- 맨 윗줄: 지금 할 일 ---- */
+.fb-title {
+  margin: 0;
+  min-width: 0;
+  min-height: 26px;
+  font-family: var(--font-display);
+  font-size: var(--t-big);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  word-break: keep-all;
+}
+/* ---- 책상 아래: 안내 한 줄 + 접은 횟수 딱지 ---- */
+.fb-status { display: flex; align-items: center; gap: 10px; min-height: 2.7em; }
+.fb-count {
+  flex: none;
+  padding: 3px 9px 4px;
+  border: var(--line);
+  border-radius: var(--radius-small);
+  background: var(--paper);
+  font-family: var(--font-display);
+  font-size: var(--t-small);
+  white-space: nowrap;
+  transform: rotate(2deg);
+}
+
+/* ---- 책상 ---- */
+.fb-desk {
+  position: relative;
+  height: var(--fb-desk-h, clamp(280px, 56vh, 520px));
+  border: var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--drop);
+  overflow: hidden;
+  /* 단풍나무 책상: 나뭇결은 아주 옅은 세로줄 */
+  background:
+    repeating-linear-gradient(90deg,
+      transparent 0 37px,
+      color-mix(in srgb, var(--ink) 7%, transparent) 37px 38.5px,
+      transparent 38.5px 91px,
+      color-mix(in srgb, var(--court-line) 28%, transparent) 91px 93px),
+    var(--court);
+}
+@supports (height: 1svh) {
+  .fb-desk { height: var(--fb-desk-h, clamp(280px, 56svh, 520px)); }
+}
+/* 책상 안의 종이 칸. 비행기 보기가 옆에 붙으면 책상을 좌우로 나눠 쓴다. */
+.fb-pane { position: relative; width: 100%; height: 100%; min-width: 0; }
+.fb-desk--split { display: flex; align-items: stretch; }
+.fb-desk--split .fb-pane { flex: 0 0 calc(var(--fb-split, 60%) - 9px); width: auto; }
+.fb-desk--split .fb-aside { flex: 1 1 0; min-width: 0; position: relative; border-left: var(--line); }
+.fb-divider {
+  flex: none;
+  position: relative;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  margin-right: -2.5px;
+  border-left: var(--line);
+  background: var(--paper);
+  cursor: col-resize;
+  touch-action: none;
+}
+/* 손가락으로 잡기 쉽게 보이는 것보다 넓게 받는다. */
+.fb-divider::before { content: ''; position: absolute; inset: 0 -9px; }
+.fb-divider__grip {
+  width: 6px;
+  height: 44px;
+  border: var(--line-thin);
+  border-radius: 4px;
+  background: var(--yellow);
+}
+/* 구석에 작게 띄우는 방식(비교용) */
+.fb-desk--pip .fb-aside {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 3;
+  width: 112px;
+  height: 112px;
+  border: var(--line);
+  border-radius: var(--radius-small);
+  box-shadow: var(--drop-small);
+  overflow: hidden;
+}
+.fb-desk__props { position: absolute; inset: 0; pointer-events: none; }
+.fb-pencil { position: absolute; right: 3px; bottom: 30px; transform: rotate(5deg); }
+.fb-pencil__body { fill: var(--yellow); stroke: var(--ink); stroke-width: 1.6; stroke-linejoin: round; }
+.fb-pencil__line { fill: none; stroke: var(--ink); stroke-width: 1.4; }
+.fb-pencil__lead { fill: var(--ink); }
+.fb-pencil__rubber { fill: var(--red); stroke: var(--ink); stroke-width: 1.6; }
+.fb-eraser { position: absolute; left: 6px; bottom: 5px; transform: rotate(-8deg); }
+.fb-eraser__body { fill: var(--paper); stroke: var(--ink); stroke-width: 2; }
+.fb-eraser__band { stroke: var(--blue); stroke-width: 8; opacity: 0.85; }
+
+.fb-svg {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+/* 종이를 잡아 끌 수 있을 때만 화면 스크롤을 막는다. 판 바깥은 언제나 스크롤된다. */
+.fb-svg.is-live { touch-action: none; cursor: grab; }
+.fb-svg[data-dragging='1'] { cursor: grabbing; }
+
+/* ---- 종이 ---- */
+.fb-home {
+  fill: none;
+  stroke: var(--court-line);
+  stroke-width: 1.5px;
+  stroke-dasharray: 3 5;
+  opacity: 0.75;
+  vector-effect: non-scaling-stroke;
+}
+.fb-drop polygon, .fb-drop-rect { fill: var(--ink); }
+.fb-drop, .fb-drop-rect { opacity: 0.3; }
+.fb-layer {
+  stroke: var(--ink);
+  stroke-opacity: 0.55;
+  stroke-width: 1.2px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.fb-layer--back { fill: var(--paper); }
+.fb-shade { fill: var(--ink); opacity: 0.026; pointer-events: none; }
+/* ---- 무늬가 붙은 종이 한 겹 ---- */
+.fb-sheet--tex .fb-layer { stroke: none; }
+.fb-ply__cast { fill: var(--ink); opacity: 0.2; pointer-events: none; }
+.fb-ply__under { fill: var(--ink); opacity: 0.055; pointer-events: none; }
+/* 가장자리 안쪽 그늘: 굵은 선을 겹 모양으로 잘라 안쪽 절반만 남긴다(흐림 효과 없이 부드러워 보인다). */
+.fb-ply__edge {
+  fill: none;
+  stroke: var(--ink);
+  stroke-opacity: 0.075;
+  stroke-width: 5px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.fb-ply__line {
+  fill: none;
+  stroke: var(--ink);
+  stroke-opacity: 0.62;
+  stroke-width: 1.2px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.fb-outline line {
+  stroke: var(--ink);
+  stroke-width: 2.5px;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* 잡을 수 있는 모서리 표시 */
+.fb-corners circle { fill: var(--paper); stroke: var(--ink); stroke-width: 2px; vector-effect: non-scaling-stroke; pointer-events: none; }
+
+/* 접히는 조각: 끌고 있는 동안은 살짝 떠서 비쳐 보이고, 놓으면 내려앉는다. */
+.fb-flap__drop polygon { fill: var(--ink); }
+.fb-flap__drop { opacity: 0; }
+.fb-flap--live .fb-flap__body { opacity: 0.86; }
+.fb-flap--live .fb-flap__drop { opacity: 0.22; transform: translate(0, 3.2px); }
+.fb-flap--settle .fb-flap__body { animation: fb-settle-body 180ms ease-out both; }
+.fb-flap--settle .fb-flap__drop { animation: fb-settle-drop 180ms ease-out both; }
+@keyframes fb-settle-body { from { opacity: 0.86; } to { opacity: 1; } }
+@keyframes fb-settle-drop {
+  from { opacity: 0.22; transform: translate(0, 3.2px); }
+  to { opacity: 0; transform: translate(0, 0); }
+}
+.fb-ghost polygon {
+  fill: var(--paper);
+  fill-opacity: 0.4;
+  stroke: var(--ink);
+  stroke-width: 2px;
+  stroke-dasharray: 5 5;
+  vector-effect: non-scaling-stroke;
+}
+
+/* 접을 수 없을 때: 종이가 고개를 젓듯 살짝 흔들린다. */
+.fb-paper { transform-box: fill-box; transform-origin: 50% 50%; }
+.fb-paper--nope { animation: fb-nope 320ms ease-in-out; }
+@keyframes fb-nope {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-1.6deg); }
+  55% { transform: rotate(1.3deg); }
+  80% { transform: rotate(-0.6deg); }
+}
+
+/* ---- 가운데 선, 접히는 선, 반짝임 ---- */
+.fb-center {
+  stroke: var(--ink);
+  stroke-opacity: 0.6;
+  stroke-width: 1.5px;
+  stroke-dasharray: 7 6;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.fb-center__label {
+  fill: var(--ink);
+  font-family: var(--font-display);
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--court);
+  stroke-width: 3px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.fb-foldline {
+  stroke: var(--ink);
+  stroke-width: 2px;
+  stroke-dasharray: 8 6;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.fb-foldline--under { stroke: var(--paper); stroke-width: 5px; stroke-dasharray: none; opacity: 0.85; }
+.fb-glow {
+  fill: none;
+  stroke: var(--measure);
+  stroke-width: 8px;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  animation: fb-glow 600ms ease-in-out infinite alternate;
+}
+.fb-glow--point { fill: var(--measure); fill-opacity: 0.55; stroke: var(--ink); stroke-width: 2.5px; }
+@keyframes fb-glow { from { opacity: 0.6; } to { opacity: 1; } }
+
+/* ---- 잡은 손잡이 ---- */
+.fb-grab { pointer-events: none; }
+.fb-grab__trail {
+  stroke: var(--ink);
+  stroke-width: 2px;
+  stroke-dasharray: 1 6;
+  stroke-linecap: round;
+  opacity: 0.7;
+  vector-effect: non-scaling-stroke;
+}
+.fb-grab__origin { fill: var(--paper); stroke: var(--ink); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.fb-grab__ring {
+  fill: var(--paper);
+  fill-opacity: 0.4;
+  stroke: var(--ink);
+  stroke-width: 2.5px;
+  vector-effect: non-scaling-stroke;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: fb-pop 160ms ease-out;
+}
+.fb-grab__ring.is-snapped { fill: var(--measure); fill-opacity: 0.65; }
+.fb-grab__dot { fill: var(--ink); }
+@keyframes fb-pop { from { transform: scale(0.55); } to { transform: scale(1); } }
+
+/* ---- 손 모양 길잡이 ---- */
+.fb-cue { pointer-events: none; }
+.fb-cue__dest {
+  fill: var(--measure);
+  fill-opacity: 0.45;
+  stroke: var(--ink);
+  stroke-width: 2px;
+  stroke-dasharray: 4 4;
+  vector-effect: non-scaling-stroke;
+}
+.fb-cue__path {
+  stroke: var(--ink);
+  stroke-width: 3px;
+  stroke-dasharray: 1 8;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.fb-cue__path--under { stroke: var(--paper); stroke-width: 7px; stroke-dasharray: none; opacity: 0.7; }
+.fb-cue__head {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 3px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.fb-cue__dot { fill: var(--measure); stroke: var(--ink); stroke-width: 2.5px; vector-effect: non-scaling-stroke; }
+.fb-cue__pulse {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: fb-pulse 1.2s ease-out infinite;
+}
+@keyframes fb-pulse {
+  from { transform: scale(0.8); opacity: 0.9; }
+  to { transform: scale(2.3); opacity: 0; }
+}
+.fb-cue__hand {
+  transform: translate(var(--fb-x0), var(--fb-y0));
+  animation: fb-hand 2.6s ease-in-out infinite;
+}
+.fb-hand { fill: var(--paper); stroke: var(--ink); stroke-width: 2.5px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.fb-hand__lines { fill: none; stroke: var(--ink); stroke-width: 1.5px; stroke-linecap: round; opacity: 0.6; vector-effect: non-scaling-stroke; }
+@keyframes fb-hand {
+  0% { transform: translate(var(--fb-x0), var(--fb-y0)); opacity: 0; }
+  10% { transform: translate(var(--fb-x0), var(--fb-y0)); opacity: 1; }
+  24% { transform: translate(var(--fb-x0), var(--fb-y0)); opacity: 1; }
+  72% { transform: translate(var(--fb-x1), var(--fb-y1)); opacity: 1; }
+  88% { transform: translate(var(--fb-x1), var(--fb-y1)); opacity: 1; }
+  100% { transform: translate(var(--fb-x1), var(--fb-y1)); opacity: 0; }
+}
+
+/* ---- 펼친 그림 ---- */
+.fb-flat { stroke: var(--ink); stroke-width: 2.5px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.fb-flat--veil { fill: var(--paper); fill-opacity: 0.45; }
+.fb-crease { stroke-width: 2.5px; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.fb-crease--valley { stroke: var(--blue); stroke-dasharray: 7 5; }
+.fb-crease--mountain { stroke: var(--red); stroke-dasharray: 10 4 2 4; }
+/* 종이 색과 선 색이 같아도 보이도록 흰 테두리를 깔아 준다. */
+.fb-crease { paint-order: stroke; filter: drop-shadow(0 0 0.4px var(--paper)); }
+.fb-desk__back { position: absolute; left: 8px; top: 8px; }
+
+/* ---- 말풍선(맞춤 안내) ---- */
+.fb-bubble {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -100%) rotate(-2deg);
+  padding: 5px 12px 6px;
+  border: var(--line);
+  border-radius: var(--radius-small);
+  background: var(--measure);
+  box-shadow: var(--drop-pressed);
+  font-family: var(--font-display);
+  font-size: var(--t-body);
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.fb-bubble--warn { background: var(--paper); }
+
+/* ---- 안내 한 줄 ---- */
+.fb-hint {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  color: var(--ink-soft);
+  font-size: var(--t-body);
+  line-height: 1.3;
+  word-break: keep-all;
+}
+.fb-hint.is-warn { color: var(--ink); font-weight: 700; }
+.fb-hint.is-warn::before {
+  content: '';
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--red);
+}
+
+/* ---- 단추 ---- */
+.fb-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+.fb-row--ask { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
+.fb-ask { grid-column: 1 / -1; margin: 0; font-family: var(--font-display); font-size: var(--t-body); }
+.fb-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: 56px;
+  margin: 0 0 4px;
+  padding: 5px 4px 6px;
+  border: var(--line);
+  border-radius: var(--radius-small);
+  background: var(--paper);
+  box-shadow: var(--drop);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 14px;
+  line-height: 1.15;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.fb-btn__label { white-space: nowrap; }
+.fb-btn:active:not(:disabled) { transform: translateY(3px); box-shadow: var(--drop-pressed); }
+.fb-btn:disabled { cursor: default; color: var(--ink-soft); background: var(--paper-shade); box-shadow: var(--drop-pressed); transform: translateY(3px); opacity: 0.6; }
+.fb-btn--primary { background: var(--yellow); }
+.fb-btn--chip { flex-direction: row; gap: 4px; min-height: var(--tap); padding: 4px 12px 4px 8px; margin: 0; }
+.fb :focus-visible { outline: 3px solid var(--tape); outline-offset: 2px; }
+
+.fb-icon { flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.fb-icon__fill { fill: color-mix(in srgb, var(--ink) 14%, transparent); }
+
+.fb-toggle.is-on { background: var(--yellow); }
+.fb-toggle--dir { background: color-mix(in srgb, var(--green) 30%, var(--paper)); }
+.fb-toggle--dir.is-alt { background: color-mix(in srgb, var(--blue) 26%, var(--paper)); }
+.fb-toggle--dir:disabled { background: var(--paper-shade); }
+.fb-toggle__state {
+  position: absolute;
+  top: -7px;
+  right: -5px;
+  display: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--paper);
+  transform: rotate(8deg);
+}
+.fb-toggle.is-on .fb-toggle__state { display: block; }
+.fb-toggle__state .fb-icon { display: block; width: 16px; height: 16px; stroke-width: 3.2; }
+
+/* ---- 선 그어 접기(고급) ---- */
+.fb-adv { border: var(--line); border-radius: var(--radius-small); background: var(--paper-shade); }
+.fb-adv__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 4px 12px;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: none;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--t-body);
+  text-align: left;
+  cursor: pointer;
+}
+.fb-adv__head > span { flex: 1; }
+.fb-adv.is-open .fb-icon--chevron { transform: rotate(180deg); }
+.fb-adv__panel { padding: 0 10px 8px; }
+.fb-adv__help { margin: 0 2px 10px; color: var(--ink-soft); font-size: var(--t-small); word-break: keep-all; }
+
+/* ---- 움직임을 줄여 달라는 설정을 존중한다 ---- */
+@media (prefers-reduced-motion: reduce) {
+  .fb-flap--settle .fb-flap__body,
+  .fb-flap--settle .fb-flap__drop,
+  .fb-paper--nope,
+  .fb-glow,
+  .fb-grab__ring,
+  .fb-cue__pulse,
+  .fb-cue__hand { animation: none; }
+  .fb-cue__pulse { opacity: 0.5; transform: scale(1.5); }
+  .fb-btn:active:not(:disabled) { transform: none; }
+}
