@@ -3,6 +3,7 @@
  *
  * 준비: npm run build (dist 가 있어야 한다)
  * 실행: node scripts/e2e.mjs            기본 빌드 검사
+ *       node scripts/e2e.mjs --dev      개발 서버와 React StrictMode 검사
  *       node scripts/e2e.mjs --api      랭킹 서버가 연결된 빌드도 흉내 서버로 검사 (dist-api 를 새로 빌드한다)
  * 하나라도 실패하면 0 이 아닌 값으로 끝난다. 화면 갈무리는 screenshots/v2/ 에 저장한다.
  */
@@ -19,6 +20,7 @@ const SHOTS = join(ROOT, 'screenshots', 'v2');
 const PORT = 4173;
 const BASE = `http://127.0.0.1:${PORT}/`;
 const WITH_API = process.argv.includes('--api');
+const DEV = process.argv.includes('--dev');
 /** --aim : 출발선 조준 검사만 빨리 돌린다 */
 const ONLY_AIM = process.argv.includes('--aim');
 mkdirSync(SHOTS, { recursive: true });
@@ -49,10 +51,10 @@ async function reachable(url) {
 }
 
 /** vite preview 를 띄운다(이미 떠 있으면 그대로 쓴다). */
-async function startPreview(port, outDir) {
+async function startPreview(port, outDir, dev = false) {
   const url = `http://127.0.0.1:${port}/`;
   if (await reachable(url)) return null;
-  const child = spawn('npx', ['vite', 'preview', '--port', String(port), '--strictPort', '--host', '127.0.0.1', '--outDir', outDir], {
+  const child = spawn('npx', ['vite', ...(dev ? [] : ['preview', '--outDir', outDir]), '--port', String(port), '--strictPort', '--host', '127.0.0.1'], {
     cwd: ROOT, stdio: 'ignore', detached: true,
   });
   for (let i = 0; i < 60; i++) {
@@ -202,6 +204,11 @@ async function audit(page, label, { words = true } = {}) {
 
 /** 캔버스가 있는 자리를 찍어서 색이 충분히 여러 가지인지 본다(검은 화면, 빈 화면 방지). */
 async function canvasAlive(page, selector, label, min = 40) {
+  const ready = await page.$eval(selector, (el) => {
+    const gl = el.getContext('webgl2');
+    return !!gl && !gl.isContextLost() && !el.parentElement.querySelector('.preview3d__fallback');
+  });
+  expect(`[${label}] WebGL 문맥이 살아 있고 오류 안내가 없다`, ready);
   const box = await page.$eval(selector, (el) => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, width: r.width, height: r.height }; });
   const clip = { x: Math.max(0, box.x), y: Math.max(0, box.y), width: Math.min(box.width, 360), height: Math.min(box.height, 420) };
   const png = await page.screenshot({ clip });
@@ -340,16 +347,20 @@ async function mainFlow(browser) {
   await page.waitForSelector(T('fb-svg'), { timeout: 8000 });
   expect('접기 판이 길잡이와 함께 열린다', (await guideProgress(page)).startsWith('0 /'));
   await sleep(400);
-  // 접는 동안: 종이 옆에 지금 접은 비행기가 크게 보이고, 종이에는 고른 종이의 무늬가 붙어 있다.
+  // 좁은 화면: 종이는 가로를 모두 쓰고, 접기 도구는 하단에 고정한다. 입체 보기는 따로 연다.
   const foldLayout = await page.evaluate(() => {
     const r = (sel) => { const el = document.querySelector(sel); if (!el) return null; const b = el.getBoundingClientRect(); return { w: b.width, h: b.height, top: b.top, bottom: b.bottom }; };
-    return { aside: r('[data-testid="fb-aside"]'), canvas: r('[data-testid="preview-canvas"]'), svg: r('[data-testid="fb-svg"]'), cta: r('[data-testid="desk-next"]'), uses: document.querySelectorAll('.fb-ply use').length, plies: document.querySelectorAll('.fb-ply').length };
+    return { aside: r('[data-testid="fb-aside"]'), history: r('[data-testid="fb-history"]'), svg: r('[data-testid="fb-svg"]'), cta: r('[data-testid="desk-next"]'), height: window.innerHeight, uses: document.querySelectorAll('.fb-ply use').length, plies: document.querySelectorAll('.fb-ply').length };
   });
-  expect('접는 동안 비행기 입체 보기가 종이 옆에 크게 보인다', !!foldLayout.aside && !!foldLayout.canvas && foldLayout.canvas.w >= 96 && foldLayout.canvas.h >= 180, JSON.stringify(foldLayout.canvas));
-  expect('접기 판의 종이가 좁아지지 않았다(가로 170px 이상, 세로 240px 이상)', !!foldLayout.svg && foldLayout.svg.w >= 170 && foldLayout.svg.h >= 240, JSON.stringify(foldLayout.svg));
-  expect('접기 판 전체가 아래 단추에 가리지 않는다', !!foldLayout.svg && !!foldLayout.cta && foldLayout.svg.bottom <= foldLayout.cta.top + 1, `${foldLayout.svg?.bottom} / ${foldLayout.cta?.top}`);
+  expect('모바일 접기 판이 옆 미리보기 없이 가로를 모두 쓴다', !foldLayout.aside && !!foldLayout.svg && foldLayout.svg.w >= 300 && foldLayout.svg.h >= 210, JSON.stringify(foldLayout.svg));
+  expect('접기 판 전체가 되돌리기 도구에 가리지 않는다', !!foldLayout.svg && !!foldLayout.history && foldLayout.svg.bottom <= foldLayout.history.top + 1, `${foldLayout.svg?.bottom} / ${foldLayout.history?.top}`);
+  expect('접기 도구와 다음 단추가 화면 안에 함께 보인다', !!foldLayout.history && !!foldLayout.cta && foldLayout.history.bottom <= foldLayout.cta.top && foldLayout.cta.bottom <= foldLayout.height, JSON.stringify(foldLayout.history));
   expect('접기 판의 종이에 무늬가 붙어 있다(겹마다 하나)', foldLayout.plies >= 1 && foldLayout.uses === foldLayout.plies, `${foldLayout.uses} / ${foldLayout.plies}`);
-  await canvasAlive(page, T('preview-canvas'), '접는 동안의 비행기', 12);
+  await tap(page, T('plane-inspect-open'));
+  await sleep(700);
+  await canvasAlive(page, `.inspect__stage ${T('preview-canvas')}`, '접는 동안 크게 살펴보기', 12);
+  await tap(page, T('plane-inspect-close'));
+  expect('살펴보기를 닫아도 접기 단계와 하단 도구가 유지된다', (await guideProgress(page)).startsWith('0 /') && await exists(page, `.desk__foldtools ${T('fb-history')}`));
   await shot(page, '04-fold-guide');
   await audit(page, '책상: 따라 접기');
   let byHand = 0, skipped = 0;
@@ -418,10 +429,12 @@ async function mainFlow(browser) {
   await page.$eval('.desk__body', (el) => { el.scrollTop = 0; });
   await shot(page, '07-shape');
   await audit(page, '책상: 날개 다듬기');
+  const withoutClipCode = await hashCode(page);
   await tap(page, T('clip-toggle'));
   expect('클립을 끼우면 자리 조절 막대가 나온다', await exists(page, T('clip-pos')));
   await tap(page, T('clip-toggle'));
-  await sleep(500);
+  // 공유 주소는 지연 갱신된다. 고정 시간 대신 클립을 뺀 설계가 주소에도 반영되기를 기다린다.
+  await page.waitForFunction((code) => window.location.hash === `#p${code}`, { timeout: 15000 }, withoutClipCode);
 
   // ---- 연구 노트: 숫자가 core 값과 같다 ----
   const deskCode = await hashCode(page);
@@ -1212,6 +1225,17 @@ async function hashFlow(browser, code, first) {
   const r = await waitResult(page);
   expect('주소로 연 화면의 결과가 처음 결과와 똑같다', r.distance === first.distance && r.airtime === first.airtime && r.verdict === first.verdict, `${r.distance}/${first.distance} ${r.airtime}/${first.airtime}`);
   expect('주소의 코드가 그대로 유지된다', (await hashCode(page)) === code);
+  // 따라 접은 화살을 공유한 코드(10.18m). 불러오기는 직접 접은 이력이 아니다.
+  const sharedPage = await newPage(browser, log);
+  const guided10m = 'P19uWgrXAv9kAn015ONpdOEaSzCL1klCelt5QC0ReLIhfeF338e14N3BxJoblqZInTbY3OMwWJU';
+  await open(sharedPage, `${BASE}#p${guided10m}`);
+  await tapThrow(sharedPage);
+  const sharedResult = await waitResult(sharedPage);
+  expect('공유한 따라 접기 비행기로 10m 이상 난다', Number.parseFloat(sharedResult.distance) >= 10, sharedResult.distance);
+  expect('공유 코드를 불러와 던지면 직접 접기 스티커를 주지 않는다', !(await exists(sharedPage, T('new-sticker-free10'))));
+  await tap(sharedPage, T('nav-book'));
+  expect('기록장에도 직접 접기 스티커가 저장되지 않는다', (await sharedPage.$eval(T('sticker-free10'), (el) => el.getAttribute('data-got'))) === 'false');
+  await sharedPage.close();
   // 잘못된 주소
   const page2 = await newPage(browser, log);
   await open(page2, `${BASE}#pNOTAREALCODE`);
@@ -1411,7 +1435,7 @@ async function run() {
   const distFiles = readdirSync(join(ROOT, 'dist'), { recursive: true, withFileTypes: true }).filter((d) => d.isFile()).length;
   expect('dist 의 파일이 200개보다 적다', distFiles < 200, `${distFiles}개`);
 
-  const preview = await startPreview(PORT, 'dist');
+  const preview = await startPreview(PORT, 'dist', DEV);
   const browser = await puppeteer.launch({
     executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome',
     headless: true,

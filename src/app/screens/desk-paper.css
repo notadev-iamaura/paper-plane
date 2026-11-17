@@ -54,17 +54,22 @@
 
 /* ---- 좁은 화면에서 접는 동안: 위쪽은 한 줄 띠 ---- */
 .desk__strip { display: flex; align-items: center; gap: 6px; height: 52px; padding: 2px 8px 0; min-width: 0; }
-.desk__strip .balance { flex: 1 1 0; min-width: 0; height: 46px; padding: 0 6px 0 0; column-gap: 0; }
-.desk__strip .balance__svg { width: 48px; height: 26px; }
+.desk__strip .balance { flex: 1 1 0; min-width: 0; height: 46px; display: flex; justify-content: center; padding: 0 6px; column-gap: 0; }
+.desk__strip .balance__svg { display: none; }
 .desk__strip .balance__label { font-size: var(--t-body); overflow: hidden; text-overflow: ellipsis; }
 .desk__strip .balance__hint { display: none; }
 .desk__strip .chip { flex: 0 1 auto; display: block; min-width: 0; max-width: 31%; padding: 5px 8px 0; overflow: hidden; text-overflow: ellipsis; }
-.desk__strip .btn { flex: none; padding-inline: 8px; gap: 4px; }
+.desk__strip .btn { flex: none; padding-inline: 8px; gap: 4px; font-size: var(--t-small); }
 .desk__strip .btn .icon { display: none; }
 .desk[data-slim='1'] .desk__steps { padding-top: 6px; }
-/* 줄인 만큼 종이와 비행기에 자리를 준다 */
-.desk[data-slim='1'] .fb { --fb-desk-h: clamp(250px, 42svh, 480px); }
+/* 접기 판과 고정 도구를 작은 화면 안에 함께 담는다. */
+.desk[data-slim='1'] .fb { --fb-desk-h: clamp(210px, 34svh, 420px); }
 .desk[data-slim='1'] .desk__body { padding-top: 10px; }
+.desk__parked { display: none; }
+.desk__foldtools:empty { display: none; }
+.desk__foldtools:not(:empty) { margin-bottom: 10px; }
+.desk__foldtools .fb-btn { min-height: 48px; padding: 4px 2px; }
+.desk__foldtools .fb-btn__label { font-size: var(--t-small); }
 
 /* ---- 종이 카드: 왼쪽에 실제 무늬로 그린 종이 한 장 ---- */
 .desk .papercard--pic { flex-direction: row; align-items: center; gap: 10px; padding: 10px 10px 10px 8px; min-width: 0; }

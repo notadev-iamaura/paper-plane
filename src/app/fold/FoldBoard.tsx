@@ -11,6 +11,7 @@
  * 그림 좌표는 mm, 종이 좌표는 m 이다(parts.tsx 의 X, Y 로 바꾼다).
  */
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { LIMITS } from '../../core/types';
 import type { FoldOp, Vec2 } from '../../core/types';
@@ -415,6 +416,27 @@ export function FoldBoard(props: FoldBoardProps): JSX.Element {
     ? '펼친 종이의 접은 선 그림'
     : `접고 있는 종이. 지금까지 ${folds.length}번 접었어요. 모서리나 가장자리를 누른 채 끌면 접혀요.`;
 
+  const toolbar = line && !line.dragging ? (
+    <div className="fb-row" data-testid="fb-line-bar">
+      <Btn icon="check" label="이 선으로 접기" primary disabled={linePlan?.status !== 'ok'} onClick={confirmLine} testId="fb-line-ok" />
+      <Btn icon="both" label="반대쪽 접기" disabled={linePlan?.status !== 'ok'} onClick={() => setLineFlip((f) => !f)} testId="fb-line-flip" />
+      <Btn icon="close" label="그만두기" onClick={cancelLine} testId="fb-line-cancel" />
+    </div>
+  ) : confirmReset ? (
+    <div className="fb-row fb-row--ask" role="group" aria-label="처음부터 다시 할지 묻기" data-testid="fb-reset-ask">
+      <p className="fb-ask">접은 걸 모두 펴고 처음부터 할까요?</p>
+      <Btn icon="check" label="응, 처음부터" primary onClick={() => { clearTransient(); props.onReset(); say('새 종이를 꺼냈어요.'); log.info('fold', '처음부터 다시'); }} testId="fb-reset-yes" />
+      <Btn icon="close" label="아니요" onClick={() => setConfirmReset(false)} testId="fb-reset-no" />
+    </div>
+  ) : (
+    <div className="fb-row" data-testid="fb-history">
+      <Btn icon="undo" label="되돌리기" disabled={!props.canUndo} onClick={() => { clearTransient(); props.onUndo(); }} testId="fb-undo" />
+      <Btn icon="redo" label="다시 하기" disabled={!props.canRedo} onClick={() => { clearTransient(); props.onRedo(); }} testId="fb-redo" />
+      <Btn icon="reset" label="처음부터" disabled={folds.length === 0} onClick={() => setConfirmReset(true)} testId="fb-reset" />
+      {guideOp && <Btn icon="skip" label="건너뛰기" onClick={skip} testId="fb-skip" ariaLabel="이번 접기 건너뛰기(대신 접어 줘요)" />}
+    </div>
+  );
+
   return (
     <section className="fb" data-testid="fold-board" aria-label="종이 접기 판">
       <p className="fb-title" data-testid="fb-title">{title}</p>
@@ -585,26 +607,7 @@ export function FoldBoard(props: FoldBoardProps): JSX.Element {
         <span className="fb-count" data-testid="fb-count">접은 횟수 {folds.length} / {LIMITS.maxFolds}</span>
       </div>
 
-      {line && !line.dragging ? (
-        <div className="fb-row" data-testid="fb-line-bar">
-          <Btn icon="check" label="이 선으로 접기" primary disabled={linePlan?.status !== 'ok'} onClick={confirmLine} testId="fb-line-ok" />
-          <Btn icon="both" label="반대쪽 접기" disabled={linePlan?.status !== 'ok'} onClick={() => setLineFlip((f) => !f)} testId="fb-line-flip" />
-          <Btn icon="close" label="그만두기" onClick={cancelLine} testId="fb-line-cancel" />
-        </div>
-      ) : confirmReset ? (
-        <div className="fb-row fb-row--ask" role="group" aria-label="처음부터 다시 할지 묻기" data-testid="fb-reset-ask">
-          <p className="fb-ask">접은 걸 모두 펴고 처음부터 할까요?</p>
-          <Btn icon="check" label="응, 처음부터" primary onClick={() => { clearTransient(); props.onReset(); say('새 종이를 꺼냈어요.'); log.info('fold', '처음부터 다시'); }} testId="fb-reset-yes" />
-          <Btn icon="close" label="아니요" onClick={() => setConfirmReset(false)} testId="fb-reset-no" />
-        </div>
-      ) : (
-        <div className="fb-row" data-testid="fb-history">
-          <Btn icon="undo" label="되돌리기" disabled={!props.canUndo} onClick={() => { clearTransient(); props.onUndo(); }} testId="fb-undo" />
-          <Btn icon="redo" label="다시 하기" disabled={!props.canRedo} onClick={() => { clearTransient(); props.onRedo(); }} testId="fb-redo" />
-          <Btn icon="reset" label="처음부터" disabled={folds.length === 0} onClick={() => setConfirmReset(true)} testId="fb-reset" />
-          {guideOp && <Btn icon="skip" label="건너뛰기" onClick={skip} testId="fb-skip" ariaLabel="이번 접기 건너뛰기(대신 접어 줘요)" />}
-        </div>
-      )}
+      {props.toolbarHost ? createPortal(toolbar, props.toolbarHost) : toolbar}
 
       <div className="fb-row" data-testid="fb-toggles">
         <Toggle

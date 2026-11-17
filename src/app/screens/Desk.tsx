@@ -3,7 +3,7 @@
  *
  * 종이 종류가 겉모습을 정한다(신문지를 고르면 신문지 비행기). 색은 따로 고르지 않는다.
  * 접는 동안에는 "지금 접은 비행기"가 주인공이다:
- * - 좁은 화면: 접기 판의 책상을 좌우로 나눠 왼쪽은 종이, 오른쪽은 살아 있는 입체 비행기(톡 누르면 크게 "살펴보기").
+ * - 좁은 화면: 종이를 넓게 쓰고, "비행기 보기"를 누르면 입체 모습을 따로 살펴본다.
  *   위쪽의 작은 미리보기는 접는 동안 한 줄짜리 띠(균형, 한 줄 예보, 연구 노트)로 줄어 종이에 자리를 내준다.
  * - 넓은 화면: 왼쪽 큰 칸에 비행기, 오른쪽에 종이를 나란히 둔다.
  * - 다 접으면(따라 접기를 끝냈거나 "다 접었어요"를 누르면) 납작한 종이가 떠올라 비행기로 펴지는 연출을 한다.
@@ -90,11 +90,6 @@ function revealSound(phase: RevealPhase): void {
   else playSound('pop');
 }
 
-/** 접기 판 실험용: localStorage 의 pp-fold-layout 이 'pip' 이면 구석에 작게 띄운다(기본은 책상 나누기). */
-function asideLayoutPref(): 'split' | 'pip' {
-  try { return window.localStorage.getItem('pp-fold-layout') === 'pip' ? 'pip' : 'split'; } catch { return 'split'; }
-}
-
 export function Desk({ state, design, ev, dispatch, onNotebook, onGoThrow, onLab }: Props): JSX.Element {
   const step = state.deskStep;
   const go = (s: DeskStep): void => dispatch({ type: 'deskStep', step: s });
@@ -108,6 +103,7 @@ export function Desk({ state, design, ev, dispatch, onNotebook, onGoThrow, onLab
   const color = look.tint;
 
   const [inspect, setInspect] = useState(false);
+  const [toolbarHost, setToolbarHost] = useState<HTMLDivElement | null>(null);
   // 펴지는 연출: key 가 played 와 다르면 아직 보여 주지 않은 연출이 있다.
   const [reveal, setReveal] = useState({ key: 0, played: 0 });
   const startReveal = (): void => setReveal((r) => ({ key: r.key + 1, played: r.played }));
@@ -125,8 +121,9 @@ export function Desk({ state, design, ev, dispatch, onNotebook, onGoThrow, onLab
   const [freeDone, setFreeDone] = useState(false);
   useEffect(() => { setFreeDone(false); }, [state.freeFolds, state.foldMode]);
 
-  // 좁은 화면에서 접는 동안에는 위쪽 미리보기를 한 줄 띠로 줄이고, 비행기는 접기 판 옆(또는 다 접은 뒤의 큰 칸)에 둔다.
+  // 좁은 화면에서는 종이에 가로를 모두 내주고, 입체 보기는 버튼으로 열거나 다 접은 뒤에 보여 준다.
   const slim = !wide && step === 'fold';
+  const folding = slim && (state.foldMode === 'simple' ? state.guideFolds !== null : !freeDone);
   const forecast = <span className="chip" data-testid="forecast">{foldCount === 0 ? '빈 종이' : forecastOf(ev.summary)}</span>;
   const noteBtn = (
     <button type="button" className="btn btn--small btn--note" onClick={onNotebook} data-testid="open-notebook">
@@ -167,7 +164,9 @@ export function Desk({ state, design, ev, dispatch, onNotebook, onGoThrow, onLab
       {slim ? (
         <div className="desk__strip">
           <BalanceScale summary={ev.summary} color={color} />
-          {forecast}
+          {folding ? <button type="button" className="btn btn--small" onClick={() => setInspect(true)} data-testid="plane-inspect-open" aria-label="비행기를 크게 살펴보기">
+            <LoupeIcon />비행기 보기
+          </button> : forecast}
           {noteBtn}
         </div>
       ) : (
@@ -184,6 +183,7 @@ export function Desk({ state, design, ev, dispatch, onNotebook, onGoThrow, onLab
           </div>
         </div>
       )}
+      {folding && <div className="desk__parked" aria-hidden="true"><PlaneSlot host={host} active={!inspect} /></div>}
 
       <nav className="desk__steps" aria-label="책상에서 하는 일">
         {STEPS.map((s, i) => (
@@ -209,20 +209,21 @@ export function Desk({ state, design, ev, dispatch, onNotebook, onGoThrow, onLab
             texture={texture}
             color={color}
             dispatch={dispatch}
-            // 좁은 화면에서만 접기 판 옆에 비행기를 둔다(넓은 화면은 왼쪽 큰 칸에 이미 있다).
-            dock={wide ? null : planeView()}
             hero={wide ? null : planeView()}
+            toolbarHost={slim ? toolbarHost : null}
             freeDone={freeDone}
             setFreeDone={setFreeDone}
             startReveal={startReveal}
           />
         )}
+        {folding && <SaveToHangar where="desk" />}
         {step === 'shape' && <ShapeArea state={state} design={design} ev={ev} color={color} dispatch={dispatch} />}
       </div>
 
       <div className="desk__cta">
+        {slim && <div ref={setToolbarHost} className="desk__foldtools" />}
         {/* 격납고에 넣기(접은 것이 있을 때만 보인다). 넘겨줄 값 없이 혼자 동작한다: components/HangarKit.tsx */}
-        {step !== 'paper' && <SaveToHangar where="desk" />}
+        {step !== 'paper' && !folding && <SaveToHangar where="desk" />}
         {/* 다 접은 비행기는 바람 실험실에 올려 볼 수 있다: screens/Lab.tsx */}
         {onLab && foldCount > 0 && (step === 'shape' || (step === 'fold' && (state.foldMode === 'simple' ? state.guideFolds === null : freeDone))) && (
           <button type="button" className="btn btn--small desk__lab" onClick={onLab} data-testid="open-lab"><LabIcon name="fan" size={22} />바람 실험실에 넣어 보기</button>
@@ -439,8 +440,7 @@ interface FoldAreaProps {
   texture: FoldTexture;
   color: string;
   dispatch: Dispatch<Action>;
-  /** 접기 판 옆에 놓을 비행기 보기(좁은 화면). 넓은 화면이면 null */
-  dock: JSX.Element | null;
+  toolbarHost: HTMLElement | null;
   /** 다 접은 뒤 크게 보여 줄 비행기 보기(좁은 화면). 넓은 화면이면 null */
   hero: JSX.Element | null;
   freeDone: boolean;
@@ -449,10 +449,9 @@ interface FoldAreaProps {
 }
 
 function FoldArea(p: FoldAreaProps): JSX.Element {
-  const { state, texture, color, dispatch, dock } = p;
+  const { state, texture, color, dispatch } = p;
   const paper = paperOf(state.paperId);
   const simple = state.foldMode === 'simple';
-  const layout = useMemo(asideLayoutPref, []);
   return (
     <div className="stack">
       <div className={`modepick${!simple || state.presetChosen ? ' modepick--compact' : ''}`} role="tablist" aria-label="접는 방법">
@@ -466,7 +465,7 @@ function FoldArea(p: FoldAreaProps): JSX.Element {
         </button>
       </div>
 
-      {simple ? <GuidedFold {...p} layout={layout} /> : p.freeDone ? (
+      {simple ? <GuidedFold {...p} /> : p.freeDone ? (
         <DoneCard
           hero={p.hero}
           paperId={p.paperId}
@@ -493,8 +492,7 @@ function FoldArea(p: FoldAreaProps): JSX.Element {
             onReset={() => dispatch({ type: 'freeSet', folds: [] })}
             paperColor={color}
             texture={texture}
-            aside={dock ?? undefined}
-            asideLayout={layout}
+            toolbarHost={p.toolbarHost}
             onSound={onFoldSound}
           />
           <button
@@ -538,7 +536,7 @@ function DoneCard({ hero, paperId, thumbId, design, name, line, testId, children
   );
 }
 
-function GuidedFold({ state, paperId, texture, color, dispatch, dock, hero, startReveal, layout }: FoldAreaProps & { layout: 'split' | 'pip' }): JSX.Element {
+function GuidedFold({ state, paperId, texture, color, dispatch, hero, toolbarHost, startReveal }: FoldAreaProps): JSX.Element {
   const paper = paperOf(state.paperId);
   const preset = PRESETS.find((p) => p.id === state.presetId) ?? PRESETS[0]!;
   const kid = foldKid(preset.id, preset.nameKo);
@@ -590,8 +588,7 @@ function GuidedFold({ state, paperId, texture, color, dispatch, dock, hero, star
           onReset={() => dispatch({ type: 'guideReset' })}
           paperColor={color}
           texture={texture}
-          aside={dock ?? undefined}
-          asideLayout={layout}
+          toolbarHost={toolbarHost}
           guide={guide}
           onGuideDone={() => { startReveal(); dispatch({ type: 'guideDone' }); }}
           onSound={onFoldSound}

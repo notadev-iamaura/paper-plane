@@ -14,7 +14,7 @@ import { buildPresetDesign, defaultPresetParams } from '../src/core/presets';
 import { STAMP_GOALS, gradeOf } from '../src/app/lib/kidvoice';
 import { STICKERS, STICKER_GOALS, addFlight, addHangarFacts, emptyProgress } from '../src/app/lib/stickers';
 import type { FlightFacts, StickerId, StickerProgress } from '../src/app/lib/stickers';
-import { defaultState, designFromState, reducer } from '../src/app/state';
+import { defaultState, designFromState, isAuthoredFreeFold, reducer } from '../src/app/state';
 
 const FULL = LIMITS.throwSpeedMax;
 const th = (speedMps: number, pitchDeg: number, rollDeg = 0): ThrowInput => ({ speedMps, pitchDeg, rollDeg });
@@ -127,17 +127,21 @@ describe('스티커 목표: 스티커마다 받을 수 있는 비행이 하나�
     expect(earned(facts({ ...design, paperId: 'copy80' }, r))).not.toContain('news8');
   });
 
-  it('내 맘대로 10 m: 따라 접은 화살을 내 맘대로 접기로 옮겨서 던진다(화면과 같은 길)', () => {
+  it('내 맘대로 10 m: 직접 접은 화살로 목표에 닿는다. 모드 전환만으로는 받지 않는다', () => {
     let s = defaultState();
     s = reducer(s, { type: 'presetPick', presetId: 'dart' });
     s = reducer(s, { type: 'presetInstant' });
     s = reducer(s, { type: 'convertToFree' });
+    expect(isAuthoredFreeFold(s)).toBe(false);
+    const folds = designFromState(s).folds;
+    s = reducer(s, { type: 'freeSet', folds: [] });
+    for (let i = 1; i <= folds.length; i++) s = reducer(s, { type: 'freeSet', folds: folds.slice(0, i) });
     const design = designFromState(s);
     expect(s.foldMode).toBe('free');
     expect(design.folds.length).toBeGreaterThan(0);
     const r = fly(design, th(FULL, -5));
     expect(r.distanceM).toBeGreaterThanOrEqual(STICKER_GOALS.farM);
-    expect(earned(facts(design, r, { free: s.foldMode === 'free' && design.folds.length > 0 }))).toContain('free10');
+    expect(earned(facts(design, r, { free: isAuthoredFreeFold(s) }))).toContain('free10');
     expect(earned(facts(design, r, { free: false }))).not.toContain('free10');
   });
 

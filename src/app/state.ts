@@ -2,7 +2,7 @@
  * 앱 전체 상태와 그 상태를 바꾸는 규칙(리듀서).
  * 단계를 오가도 값이 유지되도록 모든 입력 값을 한곳에 둔다.
  */
-import { LIMITS, PRESETS } from '../core/index';
+import { encodeDesign, LIMITS, PRESETS } from '../core/index';
 import type { FoldOp, GameMode, PlaneDesign, Shaping, ThrowInput } from '../core/index';
 import { buildPresetDesign, defaultPresetParams } from '../core/presets';
 import type { PresetParams } from '../core/presets';
@@ -41,6 +41,8 @@ export interface AppState {
   freeFolds: FoldOp[];
   freePast: FoldOp[][];
   freeFuture: FoldOp[][];
+  /** 이 기기에서 직접 바꾼 자유 접기 모양. 코드 불러오기와 모드 전환만으로는 추가하지 않는다. */
+  authoredFoldKeys: string[];
   /** 내 맘대로 접기의 날개 다듬기 값 */
   freeShaping: Shaping;
   clip: { xBodyM: number } | null;
@@ -101,6 +103,7 @@ export function defaultState(): AppState {
     freeFolds: [],
     freePast: [],
     freeFuture: [],
+    authoredFoldKeys: [],
     freeShaping: { ...DEFAULT_SHAPING },
     clip: null,
     throwIn: { ...DEFAULT_THROW },
@@ -135,6 +138,15 @@ function fixShaping(sh: Shaping, paperId: string): Shaping {
 }
 
 const MAX_HISTORY = 60;
+
+/** 공유 코드의 정밀도로 접은 선만 비교한다. 종이와 다듬기, 던지는 힘은 접기 이력이 아니다. */
+function foldKey(folds: FoldOp[]): string {
+  return encodeDesign({ v: 1, paperId: DEFAULT_PAPER_ID, folds, shaping: DEFAULT_SHAPING, clip: null });
+}
+
+export function isAuthoredFreeFold(s: AppState): boolean {
+  return s.foldMode === 'free' && s.freeFolds.length > 0 && s.authoredFoldKeys.includes(foldKey(s.freeFolds));
+}
 
 export function reducer(s: AppState, a: Action): AppState {
   switch (a.type) {
@@ -191,13 +203,18 @@ export function reducer(s: AppState, a: Action): AppState {
         freeShaping: fixShaping(d.shaping, s.paperId),
       };
     }
-    case 'freeSet':
+    case 'freeSet': {
+      const folds = a.folds.slice(0, LIMITS.maxFolds);
+      const key = foldKey(folds);
+      const changed = folds.length > 0 && key !== foldKey(s.freeFolds);
       return {
         ...s,
-        freeFolds: a.folds.slice(0, LIMITS.maxFolds),
+        freeFolds: folds,
+        authoredFoldKeys: changed ? [...s.authoredFoldKeys.filter((k) => k !== key), key].slice(-MAX_HISTORY) : s.authoredFoldKeys,
         freePast: [...s.freePast, s.freeFolds].slice(-MAX_HISTORY),
         freeFuture: [],
       };
+    }
     case 'freeUndo': {
       const prev = s.freePast[s.freePast.length - 1];
       if (!prev) return s;
@@ -287,6 +304,10 @@ export function reviveSession(raw: unknown): AppState | null {
       presetChosen: r.presetChosen === true,
       guideFolds: r.presetChosen === true ? guide : (guide ?? []),
       freeFolds: (r.freeFolds as FoldOp[]).slice(0, LIMITS.maxFolds),
+      // 예전 저장에는 직접 접었는지 알 수 있는 이력이 없다. 비행기와 기존 스티커는 그대로 둔다.
+      authoredFoldKeys: Array.isArray(r.authoredFoldKeys)
+        ? r.authoredFoldKeys.filter((k): k is string => typeof k === 'string' && k.length <= 1000).slice(-MAX_HISTORY)
+        : [],
       freeShaping: fixShaping({
         keelM: num(sh.keelM, base.freeShaping.keelM),
         dihedralDeg: num(sh.dihedralDeg, base.freeShaping.dihedralDeg),

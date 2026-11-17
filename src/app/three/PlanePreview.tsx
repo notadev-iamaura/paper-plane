@@ -623,7 +623,7 @@ export const PlanePreview = forwardRef<PlanePreviewHandle, Props>(function Plane
   { geometry, paperId, zoom = false, autoRotate = true, reveal = 0, onReveal, testId = 'preview-canvas', label }, ref,
 ): JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const viewerRef = useRef<PlaneViewer | null>(null);
   const prev = useRef<{ geom: PlaneGeometry; sig: string; paper: string; reveal: number; version: number } | null>(null);
   const onRevealRef = useRef(onReveal);
@@ -633,29 +633,45 @@ export const PlanePreview = forwardRef<PlanePreviewHandle, Props>(function Plane
 
   useImperativeHandle(ref, () => ({ setView: (view) => viewerRef.current?.setView(view) }), []);
 
-  // 1) 처음 한 번: 장면을 만든다. 화면에서 빠질 때 모두 정리한다.
+  // 장면마다 새 캔버스를 쓴다. StrictMode의 setup → cleanup → setup에서도
+  // forceContextLoss로 해제한 문맥을 다음 장면이 다시 잡지 않게 한다.
   useEffect(() => {
     const host = hostRef.current;
-    const canvas = canvasRef.current;
-    if (!host || !canvas) return undefined;
+    if (!host) return undefined;
+    const canvas = document.createElement('canvas');
+    canvas.className = 'preview3d__canvas';
+    canvas.dataset.testid = testId;
+    canvas.setAttribute('aria-label', label ?? '지금 접은 비행기 모습. 끌어서 돌려 볼 수 있어요.');
+    host.prepend(canvas);
+    canvasRef.current = canvas;
     let viewer: PlaneViewer;
     try {
       viewer = new PlaneViewer(host, canvas, { zoom, autoRotate, onReveal: (p) => onRevealRef.current?.(p) });
-    } catch {
-      log.warn('three', '비행기 미리보기를 만들지 못했어요 (WebGL 없음)');
+    } catch (err) {
+      log.warn('three', '비행기 미리보기를 만들지 못했어요', err);
       setFailed(true);
-      return undefined;
+      return () => { canvas.remove(); canvasRef.current = null; };
     }
+    setFailed(false);
     viewerRef.current = viewer;
     prev.current = null;
     (canvas as unknown as { __viewer?: PlaneViewer }).__viewer = viewer;
     return () => {
       viewer.dispose();
       viewerRef.current = null;
+      canvas.remove();
+      canvasRef.current = null;
     };
     // 장면은 한 번만 만든다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.dataset.testid = testId;
+    canvas.setAttribute('aria-label', label ?? '지금 접은 비행기 모습. 끌어서 돌려 볼 수 있어요.');
+  }, [testId, label]);
 
   useEffect(() => { viewerRef.current?.setZoom(zoom); }, [zoom]);
 
@@ -677,8 +693,7 @@ export const PlanePreview = forwardRef<PlanePreviewHandle, Props>(function Plane
 
   return (
     <div className="preview3d" ref={hostRef}>
-      <canvas ref={canvasRef} className="preview3d__canvas" data-testid={testId} aria-label={label ?? '지금 접은 비행기 모습. 끌어서 돌려 볼 수 있어요.'} />
-      {failed && <p className="preview3d__fallback">이 기기에서는 입체 그림을 보여 줄 수 없어요. 그래도 접고 던질 수 있어요.</p>}
+      {failed && <p className="preview3d__fallback">입체 그림을 불러오지 못했어요. 그래도 접고 던질 수 있어요.</p>}
     </div>
   );
 });

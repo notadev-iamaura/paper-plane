@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { decodeDesign, encodeDesign, PHYSICS_VERSION } from '../core/index';
 import type { ThrowInput } from '../core/index';
-import { DEFAULT_THROW, defaultState, designFromState, reducer, reviveSession } from './state';
+import { DEFAULT_THROW, defaultState, designFromState, isAuthoredFreeFold, reducer, reviveSession } from './state';
 import type { AppState, Screen } from './state';
 import { codeFromHash } from './lib/design';
 import { useEvaluation } from './lib/evaluation';
@@ -349,7 +349,7 @@ function Game({ fresh }: { fresh: boolean }): JSX.Element {
         distanceM: r.distanceM, airtimeS: r.airtimeS, lateralM: r.lateralM, verdict: r.verdict,
         paperId: canon.design.paperId,
         presetId: guided ? s.presetId : null,
-        free: s.foldMode === 'free' && canon.design.folds.length > 0,
+        free: isAuthoredFreeFold(s),
         hasClip: canon.design.clip !== null,
       }, Date.now());
       progressRef.current = st.progress;
